@@ -1,0 +1,18 @@
+services:
+  db:
+    image: postgres
+    volumes:
+      - db-data:/var/lib/postgres/data
+    networks:
+      - back-end
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: gator
+
+volumes:
+  db-data:
+
+networks:
+  back-end:
+    driver: bridge
