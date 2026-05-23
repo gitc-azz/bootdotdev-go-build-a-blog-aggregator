@@ -22,9 +22,11 @@ type commands struct {
 
 func CreateCommands() commands {
 	ret := commands{handlers: make(map[string]func(*state, command) error)}
+
 	ret.register("login", handlerLogin)
 	ret.register("register", handlerRegister)
 	ret.register("reset", handlerReset)
+	ret.register("users", handlerUsers)
 
 	return ret
 }
@@ -88,4 +90,21 @@ func handlerRegister(s *state, cmd command) error {
 
 func handlerReset(s *state, cmd command) error {
 	return s.db.ResetUsers(context.Background())
+}
+
+func handlerUsers(s *state, cmd command) error {
+	names, err := s.db.GetUsers(context.Background())
+	if err != nil {
+		return err
+	}
+
+	for _, name := range names {
+		if s.config.CurrentUserName == name {
+			fmt.Println("*", name, "(current)")
+		} else {
+			fmt.Println("*", name)
+		}
+	}
+
+	return nil
 }
