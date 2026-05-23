@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log"
 	"time"
 
@@ -34,7 +35,12 @@ func handlerLogin(s *state, cmd command) error {
 		return errors.New("Login command expect one argument, the username")
 	}
 
-	err := s.config.SetUser(cmd.args[0])
+	user, err := s.db.GetUser(context.Background(), cmd.args[0])
+	if err != nil {
+		return fmt.Errorf("User: %v, not found. err: %v", cmd.args[0], err)
+	}
+
+	err = s.config.SetUser(user.Name)
 	if err != nil {
 		return err
 	}
