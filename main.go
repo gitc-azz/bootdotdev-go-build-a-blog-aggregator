@@ -1,26 +1,40 @@
 package main
 
 import (
-	"fmt"
 	"log"
+	"os"
 
 	"github.com/gitc-azz/bootdotdev-go-build-a-blog-aggregator/internal/config"
 )
 
 func main() {
+	if len(os.Args) != 3 {
+		log.Fatal("Usage: gator <command> <argument>")
+	}
+
 	conf, err := config.Read()
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	conf.SetUser("azz")
+	st := state{config: &conf}
 
-	confUpdated, err := config.Read()
+	cmds := commands{handlers: make(map[string]func(*state, command) error)}
+	cmds.register("login", handlerLogin)
+
+	loginCmd := command{name: os.Args[1], args: []string{os.Args[2]}}
+
+	err = cmds.run(&st, loginCmd)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	fmt.Println(confUpdated)
+	// confUpdated, err := config.Read()
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
+
+	// fmt.Println(confUpdated)
 }
 
 type state struct {
