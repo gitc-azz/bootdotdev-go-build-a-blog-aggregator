@@ -20,6 +20,15 @@ type commands struct {
 	handlers map[string]func(*state, command) error
 }
 
+func CreateCommands() commands {
+	ret := commands{handlers: make(map[string]func(*state, command) error)}
+	ret.register("login", handlerLogin)
+	ret.register("register", handlerRegister)
+	ret.register("reset", handlerReset)
+
+	return ret
+}
+
 func (self *commands) run(s *state, cmd command) error {
 	err := self.handlers[cmd.name](s, cmd)
 
@@ -75,4 +84,8 @@ func handlerRegister(s *state, cmd command) error {
 	log.Println("The user", user_db.Name, "was created")
 
 	return nil
+}
+
+func handlerReset(s *state, cmd command) error {
+	return s.db.ResetUsers(context.Background())
 }

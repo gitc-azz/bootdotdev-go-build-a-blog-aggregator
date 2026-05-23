@@ -12,8 +12,8 @@ import (
 )
 
 func main() {
-	if len(os.Args) != 3 {
-		log.Fatal("Usage: gator <command> <argument>")
+	if len(os.Args) < 2 {
+		log.Fatal("Usage: gator <command> [argument]")
 	}
 
 	conf, err := config.Read()
@@ -30,11 +30,9 @@ func main() {
 
 	st.db = database.New(db)
 
-	cmds := commands{handlers: make(map[string]func(*state, command) error)}
-	cmds.register("login", handlerLogin)
-	cmds.register("register", handlerRegister)
+	cmds := CreateCommands()
 
-	cmd := command{name: os.Args[1], args: []string{os.Args[2]}}
+	cmd := command{name: os.Args[1], args: os.Args[2:]}
 
 	err = cmds.run(&st, cmd)
 	if err != nil {
