@@ -7,23 +7,21 @@ package database
 
 import (
 	"context"
-	"database/sql"
 	"time"
 
 	"github.com/google/uuid"
 )
 
 const createFeed = `-- name: CreateFeed :one
-INSERT INTO feeds (id, created_at, updated_at, name, url, user_id)
+INSERT INTO feeds (id, created_at, updated_at, name, url)
 VALUES (
     $1,
     $2,
     $3,
     $4,
-    $5,
-    $6
+    $5
 )
-RETURNING id, created_at, updated_at, name, url, user_id
+RETURNING id, created_at, updated_at, name, url
 `
 
 type CreateFeedParams struct {
@@ -32,7 +30,6 @@ type CreateFeedParams struct {
 	UpdatedAt time.Time
 	Name      string
 	Url       string
-	UserID    uuid.UUID
 }
 
 func (q *Queries) CreateFeed(ctx context.Context, arg CreateFeedParams) (Feed, error) {
@@ -42,7 +39,6 @@ func (q *Queries) CreateFeed(ctx context.Context, arg CreateFeedParams) (Feed, e
 		arg.UpdatedAt,
 		arg.Name,
 		arg.Url,
-		arg.UserID,
 	)
 	var i Feed
 	err := row.Scan(
@@ -51,7 +47,25 @@ func (q *Queries) CreateFeed(ctx context.Context, arg CreateFeedParams) (Feed, e
 		&i.UpdatedAt,
 		&i.Name,
 		&i.Url,
-		&i.UserID,
+	)
+	return i, err
+}
+
+const getFeed = `-- name: GetFeed :one
+SELECT id, created_at, updated_at, name, url
+FROM feeds
+WHERE url = $1
+`
+
+func (q *Queries) GetFeed(ctx context.Context, url string) (Feed, error) {
+	row := q.db.QueryRowContext(ctx, getFeed, url)
+	var i Feed
+	err := row.Scan(
+		&i.ID,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.Name,
+		&i.Url,
 	)
 	return i, err
 }
@@ -62,13 +76,14 @@ SELECT
     feeds.url,
     users.name as username
 FROM feeds
-LEFT JOIN users ON feeds.user_id = users.id
+INNER JOIN feed_follows ON feeds.id = feed_follows.feed_id
+INNER JOIN users ON feed_follows.user_id = users.id
 `
 
 type GetFeedsWithUserNameRow struct {
 	Name     string
 	Url      string
-	Username sql.NullString
+	Username string
 }
 
 func (q *Queries) GetFeedsWithUserName(ctx context.Context) ([]GetFeedsWithUserNameRow, error) {
@@ -92,4 +107,13 @@ func (q *Queries) GetFeedsWithUserName(ctx context.Context) ([]GetFeedsWithUserN
 		return nil, err
 	}
 	return items, nil
+}
+
+const resetFeed = `-- name: ResetFeed :exec
+DELETE FROM feeds
+`
+
+func (q *Queries) ResetFeed(ctx context.Context) error {
+	_, err := q.db.ExecContext(ctx, resetFeed)
+	return err
 }
