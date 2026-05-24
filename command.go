@@ -27,11 +27,17 @@ func CreateCommands() commands {
 	ret.register("register", handlerRegister)
 	ret.register("reset", handlerReset)
 	ret.register("users", handlerUsers)
+	ret.register("agg", handlerAgg)
+	ret.register("addfeed", handlerAddFeed)
+	ret.register("feeds", handlerFeeds)
 
 	return ret
 }
 
 func (self *commands) run(s *state, cmd command) error {
+	if _, ok := self.handlers[cmd.name]; !ok {
+		return fmt.Errorf("%v is a unknown command", cmd.name)
+	}
 	err := self.handlers[cmd.name](s, cmd)
 
 	return err
@@ -104,6 +110,67 @@ func handlerUsers(s *state, cmd command) error {
 		} else {
 			fmt.Println("*", name)
 		}
+	}
+
+	return nil
+}
+
+func handlerAgg(s *state, cmd command) error {
+	if len(cmd.args) != 0 {
+		return errors.New("agg command takes no arguments")
+	}
+
+	feed, err := fetchFeed(context.Background(), "https://www.wagslane.dev/index.xml")
+	if err != nil {
+		return err
+	}
+
+	fmt.Println(feed)
+
+	return nil
+}
+
+func handlerAddFeed(s *state, cmd command) error {
+	if len(cmd.args) != 2 {
+		return fmt.Errorf("%v command expects two arguments: name and url of the feed", cmd.name)
+	}
+	feedName, feedURL := cmd.args[0], cmd.args[1]
+
+	user, err := s.db.GetUser(context.Background(), s.config.CurrentUserName)
+	if err != nil {
+		return fmt.Errorf("Failed to fetch %v user from db, err: %v", s.config.CurrentUserName, err)
+	}
+
+	feedParams := database.CreateFeedParams{
+		ID:        uuid.New(),
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+		Name:      feedName,
+		Url:       feedURL,
+		UserID:    user.ID,
+	}
+	feed, err := s.db.CreateFeed(context.Background(), feedParams)
+	if err != nil {
+		return fmt.Errorf("Failed to add feed to db, err: %v", err)
+	}
+
+	fmt.Println(feed)
+
+	return nil
+}
+
+func handlerFeeds(s *state, cmd command) error {
+	if len(cmd.args) != 0 {
+		return fmt.Errorf("%v command takes no arguments", cmd.name)
+	}
+
+	feedsWithUserName, err := s.db.GetFeedsWithUserName(context.Background())
+	if err != nil {
+		return err
+	}
+
+	for _, fwun := range feedsWithUserName {
+		fmt.Println("feed:", fwun.Name, ", url:", fwun.Url, "user:", fwun.Username.String)
 	}
 
 	return nil
