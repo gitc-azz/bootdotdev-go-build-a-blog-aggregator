@@ -32,6 +32,7 @@ func CreateCommands() commands {
 	ret.register("feeds", handlerFeeds)
 	ret.register("follow", middlewareLoggedIn(handlerFollow))
 	ret.register("following", middlewareLoggedIn(handlerFollowing))
+	ret.register("unfollow", middlewareLoggedIn(handlerUnfollow))
 
 	return ret
 }
@@ -240,6 +241,30 @@ func handlerFollowing(s *state, cmd command, user database.User) error {
 	for _, ff := range fffu {
 		fmt.Println(" *", ff.FeedName)
 	}
+
+	return nil
+}
+
+func handlerUnfollow(s *state, cmd command, user database.User) error {
+	if len(cmd.args) != 1 {
+		return fmt.Errorf("%v command expect one argument: url to a RSS feed", cmd.name)
+	}
+	urlRSS := cmd.args[0]
+
+	feed, err := s.db.GetFeed(context.Background(), urlRSS)
+	if err != nil {
+		return fmt.Errorf("failed to get RSS feed: %v", urlRSS)
+	}
+
+	err = s.db.RmFeedFollow(context.Background(), database.RmFeedFollowParams{
+		UserID: user.ID,
+		FeedID: feed.ID,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to remove the RSS feed: %v, for the user: %v", feed.Name, user.Name)
+	}
+
+	fmt.Println(user.Name, "has unfollowed:", feed.Url)
 
 	return nil
 }
