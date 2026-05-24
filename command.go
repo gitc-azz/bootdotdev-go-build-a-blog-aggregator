@@ -28,10 +28,10 @@ func CreateCommands() commands {
 	ret.register("reset", handlerReset)
 	ret.register("users", handlerUsers)
 	ret.register("agg", handlerAgg)
-	ret.register("addfeed", handlerAddFeed)
+	ret.register("addfeed", middlewareLoggedIn(handlerAddFeed))
 	ret.register("feeds", handlerFeeds)
-	ret.register("follow", handlerFollow)
-	ret.register("following", handlerFollowing)
+	ret.register("follow", middlewareLoggedIn(handlerFollow))
+	ret.register("following", middlewareLoggedIn(handlerFollowing))
 
 	return ret
 }
@@ -142,16 +142,11 @@ func handlerAgg(s *state, cmd command) error {
 	return nil
 }
 
-func handlerAddFeed(s *state, cmd command) error {
+func handlerAddFeed(s *state, cmd command, user database.User) error {
 	if len(cmd.args) != 2 {
 		return fmt.Errorf("%v command expects two arguments: name and url of the feed", cmd.name)
 	}
 	feedName, feedURL := cmd.args[0], cmd.args[1]
-
-	user, err := s.db.GetUser(context.Background(), s.config.CurrentUserName)
-	if err != nil {
-		return fmt.Errorf("Failed to fetch %v user from db, err: %v", s.config.CurrentUserName, err)
-	}
 
 	feedParams := database.CreateFeedParams{
 		ID:        uuid.New(),
@@ -198,7 +193,7 @@ func handlerFeeds(s *state, cmd command) error {
 	return nil
 }
 
-func handlerFollow(s *state, cmd command) error {
+func handlerFollow(s *state, cmd command, user database.User) error {
 	if len(cmd.args) != 1 {
 		return fmt.Errorf("%v command takes exactly one argument, an url to RSS feed", cmd.name)
 	}
@@ -207,11 +202,6 @@ func handlerFollow(s *state, cmd command) error {
 	feed, err := s.db.GetFeed(context.Background(), urlFeed)
 	if err != nil {
 		return fmt.Errorf("feed at %v not found, err= %v", urlFeed, err)
-	}
-
-	user, err := s.db.GetUser(context.Background(), s.config.CurrentUserName)
-	if err != nil {
-		return fmt.Errorf("current user: %v not registered, err= %v", s.config.CurrentUserName, err)
 	}
 
 	feedFollow, err := s.db.CreateFeedFollow(context.Background(), database.CreateFeedFollowParams{
@@ -230,26 +220,37 @@ func handlerFollow(s *state, cmd command) error {
 	return nil
 }
 
-func handlerFollowing(s *state, cmd command) error {
+func handlerFollowing(s *state, cmd command, user database.User) error {
 	if len(cmd.args) != 0 {
 		return fmt.Errorf("%v command expects zero argument", cmd.name)
 	}
 
-	fffu, err := s.db.GetFeedFollowsForUser(context.Background(), s.config.CurrentUserName)
+	fffu, err := s.db.GetFeedFollowsForUser(context.Background(), user.Name)
 	if err != nil {
-		return fmt.Errorf("failed to get the RSS feed followed by %v, with err= %v", s.config.CurrentUserName, err)
+		return fmt.Errorf("failed to get the RSS feed followed by %v, with err= %v", user.Name, err)
 	}
 
 	if len(fffu) == 0 {
-		fmt.Println(s.config.CurrentUserName, "don't follow any RSS feed !")
+		fmt.Println(user.Name, "don't follow any RSS feed !")
 		return nil
 	}
 
-	fmt.Println(s.config.CurrentUserName, "is subscribed to the following feed:")
+	fmt.Println(user.Name, "is subscribed to the following feed:")
 
 	for _, ff := range fffu {
 		fmt.Println(" *", ff.FeedName)
 	}
 
 	return nil
+}
+
+func middlewareLoggedIn(handler func(*state, command, database.User) error) func(*state, command) error {
+	return func(s *state, cmd command) error {
+		user, err := s.db.GetUser(context.Background(), s.config.CurrentUserName)
+		if err != nil {
+			return fmt.Errorf("Failed to fetch %v user from db, are you registered?, err: %v", s.config.CurrentUserName, err)
+		}
+
+		return handler(s, cmd, user)
+	}
 }
