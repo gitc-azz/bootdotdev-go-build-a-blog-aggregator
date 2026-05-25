@@ -7,10 +7,13 @@ import (
 	"fmt"
 	"html"
 	"io"
+	"log"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/gitc-azz/bootdotdev-go-build-a-blog-aggregator/internal/database"
+	"github.com/google/uuid"
 )
 
 type RSSFeed struct {
@@ -86,15 +89,68 @@ func scrapeFeeds(s *state) error {
 	if err != nil {
 		return fmt.Errorf("failed to fetchFeed at %v, err= %v", feed.Url, err)
 	}
+	log.Println(" * fetched")
 
-	if len(rssFeed.Channel.Item) == 0 {
-		fmt.Println("RSS feed has zero Item")
-	} else {
-		fmt.Println("RSS feed -", feed.Name, "- has the following Item's title:")
-	}
 	for _, item := range rssFeed.Channel.Item {
-		fmt.Println(" *", item.Title)
+		publishedAt, err := parseDate(item.PubDate)
+		if err != nil {
+			log.Println("failed to parse pub date from RSS feed item, err=", err)
+		}
+
+		_, err = s.db.CreatePost(context.Background(), database.CreatePostParams{
+			ID:          uuid.New(),
+			CreatedAt:   time.Now(),
+			UpdatedAt:   time.Now(),
+			Title:       item.Title,
+			Url:         item.Link,
+			Description: item.Description,
+			PublishedAt: publishedAt,
+			FeedID:      feed.ID,
+		})
+		if err != nil {
+			if strings.Contains(err.Error(), "duplicate key value violates unique constraint \"posts_url_key\"") {
+				continue
+			}
+
+			return fmt.Errorf("failed to create Post, err= %v", err)
+		}
 	}
 
 	return nil
+}
+
+func parseDate(toParse string) (time.Time, error) {
+	timeLayouts := []string{
+		time.Layout,
+		time.ANSIC,
+		time.UnixDate,
+		time.RubyDate,
+		time.RFC822,
+		time.RFC822Z,
+		time.RFC850,
+		time.RFC1123,
+		time.RFC1123Z,
+		time.RFC3339,
+		time.RFC3339Nano,
+		time.Kitchen,
+		// Handy time stamps.
+		time.Stamp,
+		time.StampMilli,
+		time.StampMicro,
+		time.StampNano,
+		time.DateTime,
+		time.DateOnly,
+		time.TimeOnly,
+	}
+
+	var lastErr error
+	for _, timeLayout := range timeLayouts {
+		ret, err := time.Parse(timeLayout, toParse)
+		if err == nil {
+			return ret, nil
+		}
+		lastErr = err
+	}
+
+	return time.Time{}, fmt.Errorf("failed to parse date despite having tryied all golang time.Layout, err= %v", lastErr)
 }

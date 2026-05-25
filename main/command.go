@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"strconv"
 	"time"
 
 	"github.com/gitc-azz/bootdotdev-go-build-a-blog-aggregator/internal/database"
@@ -33,6 +34,7 @@ func CreateCommands() commands {
 	ret.register("follow", middlewareLoggedIn(handlerFollow))
 	ret.register("following", middlewareLoggedIn(handlerFollowing))
 	ret.register("unfollow", middlewareLoggedIn(handlerUnfollow))
+	ret.register("browse", middlewareLoggedIn(handlerBrowse))
 
 	return ret
 }
@@ -273,6 +275,33 @@ func handlerUnfollow(s *state, cmd command, user database.User) error {
 	}
 
 	fmt.Println(user.Name, "has unfollowed:", feed.Url)
+
+	return nil
+}
+
+func handlerBrowse(s *state, cmd command, user database.User) error {
+	if len(cmd.args) >= 2 {
+		return fmt.Errorf("%v command usage: %v [nb_posts_to_print]", cmd.name, cmd.name)
+	}
+	nbPostsToPrint := uint32(2)
+	if len(cmd.args) == 1 {
+		fromArg, err := strconv.ParseUint(cmd.args[0], 10, 32)
+		if err == nil {
+			nbPostsToPrint = uint32(fromArg)
+		}
+	}
+
+	posts, err := s.db.GetPostsForUser(context.Background(), database.GetPostsForUserParams{
+		UserID: user.ID,
+		Limit:  int32(nbPostsToPrint),
+	})
+	if err != nil {
+		return fmt.Errorf("failed to get posts from db, err= %v", err)
+	}
+
+	for _, post := range posts {
+		fmt.Println(post)
+	}
 
 	return nil
 }
