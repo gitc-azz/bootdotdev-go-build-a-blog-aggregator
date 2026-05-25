@@ -129,18 +129,26 @@ func handlerUsers(s *state, cmd command) error {
 }
 
 func handlerAgg(s *state, cmd command) error {
-	if len(cmd.args) != 0 {
-		return errors.New("agg command takes no arguments")
+	if len(cmd.args) != 1 {
+		return errors.New("agg command takes one argument: <time_between_reqs>")
 	}
-
-	feed, err := fetchFeed(context.Background(), "https://www.wagslane.dev/index.xml")
+	timeBetweenReqs, err := time.ParseDuration(cmd.args[0])
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to parse duration of time_betwee_reqs, expect: 5s 5m 5h, err= %v", err)
 	}
 
-	fmt.Println(feed)
+	fmt.Println("Collecting feeds every", timeBetweenReqs)
 
-	return nil
+	ticker := time.NewTicker(timeBetweenReqs)
+	for ; ; <-ticker.C {
+		err = scrapeFeeds(s)
+		if err != nil {
+			return err
+		}
+	}
+
+	// unreachable...
+	//return nil
 }
 
 func handlerAddFeed(s *state, cmd command, user database.User) error {
