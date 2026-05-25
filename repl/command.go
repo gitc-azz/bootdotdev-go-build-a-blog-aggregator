@@ -1,20 +1,49 @@
-package main
+package repl
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"log"
 	"strconv"
 	"time"
 
+	"github.com/gitc-azz/bootdotdev-go-build-a-blog-aggregator/internal/config"
 	"github.com/gitc-azz/bootdotdev-go-build-a-blog-aggregator/internal/database"
 	"github.com/google/uuid"
 )
 
+func Init() (*state, commands) {
+	conf, err := config.Read()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	st := state{config: &conf}
+
+	db, err := sql.Open("postgres", st.config.DbUrl)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	st.db = database.New(db)
+
+	return &st, CreateCommands()
+}
+
+type state struct {
+	config *config.Config
+	db     *database.Queries
+}
+
 type command struct {
 	name string
 	args []string
+}
+
+func NewCommand(name string, args []string) command {
+	return command{name: name, args: args}
 }
 
 type commands struct {
@@ -39,7 +68,7 @@ func CreateCommands() commands {
 	return ret
 }
 
-func (self *commands) run(s *state, cmd command) error {
+func (self *commands) Run(s *state, cmd command) error {
 	if _, ok := self.handlers[cmd.name]; !ok {
 		return fmt.Errorf("%v is a unknown command", cmd.name)
 	}
