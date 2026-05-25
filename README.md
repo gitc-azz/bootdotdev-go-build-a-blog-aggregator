@@ -17,10 +17,11 @@ go install github.com/gitc-azz/bootdotdev-go-build-a-blog-aggregator@latest
 A JSON `gatorconfig.json` with the following format is expected:
 ```json
 {
-  "db_url": "postgres://<postgres_user>:<postgres_pswd>@<db_domain>:<db_port>/gator?sslmode=disable",
+  "db_url": "postgres://<postgres_user>:<postgres_pswd>@<db_domain>:<db_port>/<db_name>?sslmode=disable",
   "current_user_name": "<username>"
 }
 ```
+- `db_name` is the database you created in Postgres.
 
 `gatorconfig.json` file's location is `$XDG_CONFIG_HOME/bootdotdev-go-build-a-blog-aggregator/`
 

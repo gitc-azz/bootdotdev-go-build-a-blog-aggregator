@@ -329,7 +329,13 @@ func handlerBrowse(s *state, cmd command, user database.User) error {
 	}
 
 	for _, post := range posts {
-		fmt.Println(post)
+		fmt.Println("*************")
+		fmt.Println(post.Title)
+		fmt.Println("*************")
+		fmt.Println(post.Description)
+		fmt.Println("***************************************")
+		fmt.Println("***************************************")
+		fmt.Println("***************************************")
 	}
 
 	return nil
