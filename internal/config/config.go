@@ -6,7 +6,7 @@ import (
 	"os"
 )
 
-const CONFIG_PATH string = ".config/bootdotdev-go-build-a-blog-aggregator/.gatorconfig.json"
+const CONFIG_PATH string = "bootdotdev-go-build-a-blog-aggregator/gatorconfig.json"
 
 type Config struct {
 	DbUrl           string `json:"db_url"`
@@ -57,9 +57,9 @@ func Read() (Config, error) {
 }
 
 func getConfigPath() (string, error) {
-	ret, err := os.UserHomeDir()
-	if err != nil {
-		return "", err
+	ret := os.Getenv("XDG_CONFIG_HOME")
+	if ret == "" {
+		return "", errors.New("Please set your XDG_CONFIG_HOME environment variable.")
 	}
 
 	ret += "/" + CONFIG_PATH
